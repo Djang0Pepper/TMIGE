@@ -192,9 +192,7 @@ def cb_on_message(mqtt, userdata, msg):
                 # Other sensors haven't been observed by the authors yet
                 # elif 'othersensor' in st['ANALOG']:
 
-            # elif 'OTHERSENSOR' in st:
-            #     # handle other sensor data
-            elif 'AM2301' in st:
+            if 'AM2301' in st:
                 measurement = host
                 # Data from analog inputs like temperature sensors
                 if 'Temperature' in st['AM2301']:
@@ -203,7 +201,9 @@ def cb_on_message(mqtt, userdata, msg):
                     fields['AM_humidity'] = st['AM2301']['Humidity']
                 if 'DewPoint' in st['AM2301']:
                     fields['AM_dewpoint'] = st['AM2301']['DewPoint']
-            elif 'DS18B20' in st:
+
+            if 'DS18B20' in st:
+                measurement = host
                 # Data from analog inputs like temperature sensors
                 if 'Temperature' in st['DS18B20']:
                     fields['DS_temperature'] = st['DS18B20']['Temperature']
