@@ -13,11 +13,11 @@ from datetime import timedelta
 __version__ = '0.0.1'
 
 # Get settings for MQTT from environment
-MQTT_HOST = os.environ.get('MQTT_HOST', '127.0.0.1')
+MQTT_HOST = os.environ.get('MQTT_HOST', 'picollo.duckdns.org')
 MQTT_PORT = os.environ.get('MQTT_PORT', 1883)
 
 # Get settings for InfluxDB from environment
-INFLUX_HOST = os.environ.get('INFLUX_HOST', '127.0.0.1')
+INFLUX_HOST = os.environ.get('INFLUX_HOST', 'picollo.duckdns.org')
 INFLUX_PORT = os.environ.get('INFLUX_PORT', 8086)
 INFLUX_USER = os.environ.get('INFLUX_USER', 'admin')
 INFLUX_PASS = os.environ.get('INFLUX_PASS', 'admin')
