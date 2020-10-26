@@ -225,28 +225,28 @@ def cb_on_message(mqtt, userdata, msg):
             measurement = 'STATE'
 
             fields['uptime'] = uptime_to_seconds(st['Uptime'])
-            if 'Vcc' in st:
-                fields['vcc'] = st['Vcc']
+            """ if 'Vcc' in st:
+                fields['vcc'] = st['Vcc'] """
             if 'UptimeSec' in st:
                 fields['uptime_sec'] = st['UptimeSec']
-            if 'LoadAvg' in st:
+            """ if 'LoadAvg' in st:
                 fields['load_avg'] = st['LoadAvg']
             if 'POWER' in st:
                 fields['power'] = st['POWER']
             if 'POWER1' in st:
-                fields['power1'] = st['POWER1']
+                fields['power1'] = st['POWER1'] """
             if 'Wifi' in st:
                 wi = st['Wifi']
                 if 'SSId' in wi:
                     tags['wifi_ssid'] = wi['SSId']
                 if 'RSSI' in wi:
                     fields['wifi_rssi'] = wi['RSSI']
-                if 'Signal' in wi:
+                """ if 'Signal' in wi:
                     fields['wifi_signal'] = wi['Signal']
                 if 'Channel' in wi:
                     fields['wifi_channel'] = wi['Channel']
                 if 'LinkCount' in wi:
-                    fields['wifi_link_count'] = wi['LinkCount']
+                    fields['wifi_link_count'] = wi['LinkCount'] """
                 if 'Downtime' in wi:
                     fields['wifi_downtime'] = uptime_to_seconds(wi['Downtime'])
 
