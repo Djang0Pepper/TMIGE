@@ -1,4 +1,47 @@
 #!/usr/bin/env python3
+"""
+## -fred The service definition must be on the /lib/systemd/system folder.
+The service definition must be on the /etc/systemd/system folder.
+Our service is going to be called "TMIGE.service":
+Code: Select all
+
+[Unit]
+Description=Tasmota Mqtt Influx Graphan python bridgE
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python /usr/local/bin/TMIGE.py
+#-fredRestart=on-abort
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+Here we are creating a very simple service that runs our  script and if by any means is aborted is going to be restarted automatically.
+You can check more on service's options in the next wiki: https://wiki.archlinux.org/index.php/systemd.
+
+Now that we have our service we need to activate it:
+Code: Select all
+rename service-TMIGE.service to TMIGE.service
+##-fred sudo chmod 644 /lib/systemd/system/TMIGE.service
+sudo chmod 644 /etc/systemd/system/TMIGE.service
+chmod +x /usr/local/bin/TMIGE.py
+sudo systemctl daemon-reload
+sudo systemctl enable TMIGE.service
+sudo systemctl start TMIGE.service
+
+
+sudo chmod 644 /etc/systemd/system/TMIGE.service
+chmod +x /usr/local/bin/TMIGE.py
+sudo systemctl daemon-reload
+sudo systemctl enable TMIGE.service
+
+TOCREATE DATABASE home_db
+docker exec -it influxdb influx -precision s{NC}
+
+"""
+
 
 import paho.mqtt.client as paho
 from influxdb import InfluxDBClient
@@ -10,13 +53,11 @@ import re
 from datetime import timedelta
 
 # Script version
-__version__ = '0.2'
+__version__ = '0.0.5'
 
 # Get settings for MQTT from environment
 MQTT_HOST = os.environ.get('MQTT_HOST', 'picollo.duckdns.org')
 MQTT_PORT = os.environ.get('MQTT_PORT', 1884)
-MQTT_USER = 'pi'
-MQTT_PASSWORD ='jama'
 
 # Get settings for InfluxDB from environment
 INFLUX_HOST = os.environ.get('INFLUX_HOST', 'picollo.duckdns.org')
@@ -26,7 +67,7 @@ INFLUX_PASS = os.environ.get('INFLUX_PASS', 'root')
 INFLUX_DB = os.environ.get('INFLUX_DB', 'TMIGE_db')
 
 # Enable debugging by setting DEBUG=1
-DEBUG = os.environ.get('DEBUG', False)
+DEBUG = os.environ.get('DEBUG', True)
 
 # Regular expression to pull the host name from the topic string.
 # In a topic string like "tele/sonoff-pow-1/STATE", this matches "sonoff-pow-1".
@@ -89,12 +130,6 @@ def cb_on_connect(mqtt, userdata, flags, rc):
     Invoked after a successful connect to the MQTT broker. The callback subscribes to the interesting topics defined
     above.
     '''
-    #username_pw_set(username=pi, password=jama)
-    #def on_connect(client, userdata, flags, rc):
-    if rc==0:
-        print("connected OK Returned code=",rc)
-    else:
-        print("Bad connection Returned code=",rc)
     mqtt.subscribe(TOPIC_SENSOR, 0)
     mqtt.subscribe(TOPIC_STATE, 0)
     mqtt.subscribe(TOPIC_UPTIME, 0)
@@ -129,81 +164,15 @@ def cb_on_message(mqtt, userdata, msg):
         # Tasmota 5.1.12: {"Time":"2018-06-09T16:29:19","ENERGY":{"Total":0.034,"Yesterday":0.000,"Today":0.031,"Period":3,"Power":34,"Factor":0.85,"Voltage":236,"Current":0.170}}
         # Tasmota 8.1.0: {"Time":"2020-02-10T21:29:35","ENERGY":{"TotalStartTime":"2020-02-10T21:00:25","Total":1.310,"Yesterday":0.000,"Today":0.000,"Period":0,"Power":0,"ApparentPower":0,"ReactivePower":0,"Factor":0.00,"Voltage":0,"Current":0.000}}
 
-        # Shelly 1PM on Tasmota 8.1.0:
-        # {
-        # "Time":"2020-03-13T11:06:00",
-        # "Switch1":"OFF",
-        # "ANALOG":{
-        #   "Temperature":42.2
-        # },
-        # "ENERGY":{
-        #   "TotalStartTime":"2020-03-11T15:21:39",
-        #   "Total":0.680,
-        #   "Yesterday":0.355,
-        #   "Today":0.325,
-        #   "Period":30,
-        #   "Power":202
-        # },
-        # "TempUnit":"C"
-        # }
-
-        # NOTE: This has to be adjusted for the specific fields your Tasmota-device supports.
-
-        # extract the payload by means of a json parser. It will raise an exception if the data is invalid.
         try:
             st = json.loads(msg.payload.decode('utf-8'))
         except Exception as e:
             logging.critical('Message decoding failed: ' + str(e))
         else:
             # check if the fields are what we look for. Other sensors use different fields.
-            if 'ENERGY' in st:
-                measurement = 'energy'
-
-                energy = st['ENERGY']
-
-                # extract all the fields, providing sensible defaults if missing.
-
-                fields['total'] = energy['Total']
-                fields['power'] = energy['Power']
-
-                # the follwing 3 are reported by a Sonoff POW R2, but not by a Shelly 1PM
-                if 'Factor' in energy:
-                    fields['factor'] = energy['Factor']
-                if 'Voltage' in energy:
-                    fields['voltage'] = energy['Voltage']
-                if 'Current' in energy:
-                    fields['current'] = energy['Current']
-
-                # Sonoff POW R2: period, apparent power and reactive power is reported at version 8.1.0
-                if 'Period' in energy:
-                    fields['period'] = energy['Period']
-                # Shelly 1PM: not reported
-                if 'ApparentPower' in energy:
-                    fields['apparent_power'] = energy['ApparentPower']
-                if 'ReactivePower' in energy:
-                    fields['reactive_power'] = energy['ReactivePower']
-
-                # There are more fields, like "TotalStartTime", "Yesterday" and so on, but we're not interested in
-                # them as we can calculate them out of the data in the InfluxDB
-
-            elif 'ANALOG' in st:
-                # Data from analog inputs like temperature sensors
-
-                if 'Temperature' in st['ANALOG']:
-                    measurement = 'ambient'
-
-                    if 'TempUnit' in st and st['TempUnit'] == 'F':
-                        fields['temperature'] = (st['ANALOG']['Temperature'] - 32) * 5 / 9
-                    else:
-                        fields['temperature'] = st['ANALOG']['Temperature']
-
-                # Other sensors haven't been observed by the authors yet
-                # elif 'othersensor' in st['ANALOG']:
-
-            elif 'AM2301' in st:
+            if 'AM2301' in st:
                 measurement = host
-                logging.info('AM2301 sensor measurement found in message: ' + str(st))
-                # Data from analog inputs like temperature sensors
+                # Data from AM2301 inputs like temperature sensors
                 if 'Temperature' in st['AM2301']:
                     fields['AM_temperature'] = st['AM2301']['Temperature']
                 if 'Humidity' in st['AM2301']:
@@ -211,10 +180,9 @@ def cb_on_message(mqtt, userdata, msg):
                 if 'DewPoint' in st['AM2301']:
                     fields['AM_dewpoint'] = st['AM2301']['DewPoint']
 
-            elif 'SI7021' in st:
+            if 'SI7021' in st:
                 measurement = host
-                logging.info('SI70211 sensor measurement found in message: ' + str(st))
-                # Data from analog inputs like temperature sensors
+                # Data from SI7021/AM2301 inputs like temperature sensors
                 if 'Temperature' in st['SI7021']:
                     fields['SI_temperature'] = st['SI7021']['Temperature']
                 if 'Humidity' in st['SI7021']:
@@ -222,10 +190,9 @@ def cb_on_message(mqtt, userdata, msg):
                 if 'DewPoint' in st['SI7021']:
                     fields['SI_dewpoint'] = st['SI7021']['DewPoint']
 
-            elif 'DS18B20' in st:
+            if 'DS18B20' in st:
                 measurement = host
-                logging.info('DS18B20 sensor measurement found in message: ' + str(st))
-                # Data from analog inputs like temperature sensors
+                # Data from DS18B20 inputs like temperature sensors
                 if 'Temperature' in st['DS18B20']:
                     fields['DS_temperature'] = st['DS18B20']['Temperature']
 
@@ -303,7 +270,7 @@ def cb_on_message(mqtt, userdata, msg):
             {
                 'measurement': measurement,
                 'tags': tags,
-                'fields': fields
+                'fields': fields,
             }
         ], time_precision=time_precision)
 
@@ -316,10 +283,6 @@ def main():
     influxc = InfluxDBClient(INFLUX_HOST, INFLUX_PORT, INFLUX_USER, INFLUX_PASS, INFLUX_DB)
 
     mqttc = paho.Client(CLIENT_ID, clean_session=True)
-
-    #mqttc.tls_set()  # <--- even without arguments
-    mqttc.username_pw_set("pi", "jama")
-
     mqttc.on_message = cb_on_message
     mqttc.on_connect = cb_on_connect
 
@@ -333,3 +296,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
