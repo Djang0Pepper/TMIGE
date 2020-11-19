@@ -216,11 +216,11 @@ def cb_on_message(mqtt, userdata, msg):
                 logging.info('SI70211 sensor measurement found in message: ' + str(st))
                 # Data from analog inputs like temperature sensors
                 if 'Temperature' in st['SI7021']:
-                    fields['AM_temperature'] = st['SI7021']['Temperature']
+                    fields['SI_temperature'] = st['SI7021']['Temperature']
                 if 'Humidity' in st['SI7021']:
-                    fields['AM_humidity'] = st['SI7021']['Humidity']
+                    fields['SI_humidity'] = st['SI7021']['Humidity']
                 if 'DewPoint' in st['SI7021']:
-                    fields['AM_dewpoint'] = st['SI7021']['DewPoint']
+                    fields['SI_dewpoint'] = st['SI7021']['DewPoint']
 
             elif 'DS18B20' in st:
                 measurement = host
