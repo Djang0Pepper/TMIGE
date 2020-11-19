@@ -1,0 +1,15 @@
+Unit]
+Description=Tasmota Mosquitto Influx Grafana Extender Service
+After=multi-user.target
+
+[Service]
+#WorkingDirectory=/home/pi/SysPython
+WorkingDirectory=/home/pi/TMIGE
+User=pi
+Type=idle
+ExecStart=/usr/bin/python /home/pi/TMIGE/TMIGE.py  &> /dev/null
+#ExecStart=/usr/bin/python /home/pi/TMIGE/TMIGE.py 
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

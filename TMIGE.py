@@ -10,18 +10,20 @@ import re
 from datetime import timedelta
 
 # Script version
-__version__ = '0.0.1'
+__version__ = '0.2'
 
 # Get settings for MQTT from environment
-MQTT_HOST = os.environ.get('MQTT_HOST', 'x.duckdns.org')
+MQTT_HOST = os.environ.get('MQTT_HOST', 'picollo.duckdns.org')
 MQTT_PORT = os.environ.get('MQTT_PORT', 1884)
+MQTT_USER = 'pi'
+MQTT_PASSWORD ='jama'
 
 # Get settings for InfluxDB from environment
-INFLUX_HOST = os.environ.get('INFLUX_HOST', 'x.duckdns.org')
+INFLUX_HOST = os.environ.get('INFLUX_HOST', 'picollo.duckdns.org')
 INFLUX_PORT = os.environ.get('INFLUX_PORT', 8086)
-INFLUX_USER = os.environ.get('INFLUX_USER', 'x')
-INFLUX_PASS = os.environ.get('INFLUX_PASS', 'x')
-INFLUX_DB = os.environ.get('INFLUX_DB', 'x_db')
+INFLUX_USER = os.environ.get('INFLUX_USER', 'root')
+INFLUX_PASS = os.environ.get('INFLUX_PASS', 'root')
+INFLUX_DB = os.environ.get('INFLUX_DB', 'TMIGE_db')
 
 # Enable debugging by setting DEBUG=1
 DEBUG = os.environ.get('DEBUG', False)
@@ -34,7 +36,7 @@ HOST_RE = re.compile(r'^[a-zA-Z0-9\-_]+/([a-zA-Z0-9\-_]+)/')
 UPTIME_RE = re.compile(r'^(\d+)T(\d+):(\d+):(\d+)$')
 
 # Name by which we'll be known to the MQTT broker
-CLIENT_ID = 'tasmota-receiver-example_{0}'.format(__version__)
+CLIENT_ID = 'TMIGE_{0}'.format(__version__)
 
 # end of configuration
 
@@ -87,6 +89,12 @@ def cb_on_connect(mqtt, userdata, flags, rc):
     Invoked after a successful connect to the MQTT broker. The callback subscribes to the interesting topics defined
     above.
     '''
+    #username_pw_set(username=pi, password=jama)
+    #def on_connect(client, userdata, flags, rc):
+    if rc==0:
+        print("connected OK Returned code=",rc)
+    else:
+        print("Bad connection Returned code=",rc)
     mqtt.subscribe(TOPIC_SENSOR, 0)
     mqtt.subscribe(TOPIC_STATE, 0)
     mqtt.subscribe(TOPIC_UPTIME, 0)
@@ -192,8 +200,9 @@ def cb_on_message(mqtt, userdata, msg):
                 # Other sensors haven't been observed by the authors yet
                 # elif 'othersensor' in st['ANALOG']:
 
-            if 'AM2301' in st:
+            elif 'AM2301' in st:
                 measurement = host
+                logging.info('AM2301 sensor measurement found in message: ' + str(st))
                 # Data from analog inputs like temperature sensors
                 if 'Temperature' in st['AM2301']:
                     fields['AM_temperature'] = st['AM2301']['Temperature']
@@ -202,8 +211,20 @@ def cb_on_message(mqtt, userdata, msg):
                 if 'DewPoint' in st['AM2301']:
                     fields['AM_dewpoint'] = st['AM2301']['DewPoint']
 
-            if 'DS18B20' in st:
+            elif 'SI7021' in st:
                 measurement = host
+                logging.info('SI70211 sensor measurement found in message: ' + str(st))
+                # Data from analog inputs like temperature sensors
+                if 'Temperature' in st['SI7021']:
+                    fields['AM_temperature'] = st['SI7021']['Temperature']
+                if 'Humidity' in st['SI7021']:
+                    fields['AM_humidity'] = st['SI7021']['Humidity']
+                if 'DewPoint' in st['SI7021']:
+                    fields['AM_dewpoint'] = st['SI7021']['DewPoint']
+
+            elif 'DS18B20' in st:
+                measurement = host
+                logging.info('DS18B20 sensor measurement found in message: ' + str(st))
                 # Data from analog inputs like temperature sensors
                 if 'Temperature' in st['DS18B20']:
                     fields['DS_temperature'] = st['DS18B20']['Temperature']
@@ -282,7 +303,7 @@ def cb_on_message(mqtt, userdata, msg):
             {
                 'measurement': measurement,
                 'tags': tags,
-                'fields': fields,
+                'fields': fields
             }
         ], time_precision=time_precision)
 
@@ -295,6 +316,10 @@ def main():
     influxc = InfluxDBClient(INFLUX_HOST, INFLUX_PORT, INFLUX_USER, INFLUX_PASS, INFLUX_DB)
 
     mqttc = paho.Client(CLIENT_ID, clean_session=True)
+
+    #mqttc.tls_set()  # <--- even without arguments
+    mqttc.username_pw_set("pi", "jama")
+
     mqttc.on_message = cb_on_message
     mqttc.on_connect = cb_on_connect
 
