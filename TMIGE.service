@@ -1,15 +1,19 @@
-Unit]
-Description=Tasmota Mosquitto Influx Grafana Extender Service
-After=multi-user.target
+[Unit]
+Description=Tasmota Mqtt Influx Graphan python bridgE
+After=network.target
 
 [Service]
-#WorkingDirectory=/home/pi/SysPython
+Type=simple
+ExecStart=/usr/bin/python /usr/local/bin/TMIGE.py
 WorkingDirectory=/home/pi/TMIGE
+StandardError=syslog
+Restart=always
 User=pi
-Type=idle
-ExecStart=/usr/bin/python /home/pi/TMIGE/TMIGE.py  &> /dev/null
-#ExecStart=/usr/bin/python /home/pi/TMIGE/TMIGE.py 
+
+#-fredRestart=on-abort
+#User=pi
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
+
